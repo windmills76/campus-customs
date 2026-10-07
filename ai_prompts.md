@@ -76,3 +76,12 @@ No follow-up needed — while verifying in the browser, found and fixed a relate
 > Problem 8 is called Customer memory. When a shopper is logged into their account, save their chat history in the databse in an appropraite table and reload it when they return. the agent should know who is chatting (name and email) put this in agent deps or an reqivalent clear pattern and/or tools the agent can call. Also pass enough page context that if someone is on a product page and asks do you have this in pinnk the agent knows which item they mean -- putting code into the agent context to do this would be an option. Guest can sitll chat, but their history won't be saved. it only needs to be saved for logged-in users. Document in harness.md how user chat history is stored, what customer fields the agent sees, and how page context is passed.
 
 No follow-up needed. (Chat history persistence/reload into `chat_messages` already existed from Problem 5; this problem's actual new work was adding `ShopperContext` agent deps for identity + page context, verified by asking the agent to state the shopper's name/email and by testing "do you have this in pink?" on a specific product's detail page.)
+
+---
+
+## Problem 9 — Usability Improvements
+
+**Prompt:**
+> Problem 9 is called usability improvements. Now that the core shop works, improve it. choose and implement: 2 front-end usability improvements, 2 agent/backend usability improvement. Front-end improvements are things that make the site look better and make it easier to use. Agent/backend improvements are things that make the agent output better, more accurate, or safer. There could be new agent tools or things tha tmake the agent run faster or cheaper. Write output/usability.md before or as you build. for each improvement, say what was added and why it helps a campus customers shopper or the campus customs business. Then make sure all improvements actually show up in the running app. Graders will read the write up and look for these features so ensure that they are exactly aligned.
+
+No follow-up needed. Chose: (front-end) product search + garment-type filter on the Products page, and a responsive hamburger mobile nav; (agent/backend) a 60-second in-memory catalogue cache to cut repeated DB scans per chat turn, and budget-aware (`max_price`/`min_price`) catalogue search so price-bounded questions are filtered in code instead of by model arithmetic. All four verified live in the browser/API before considering the problem done, matching output/usability.md exactly.
