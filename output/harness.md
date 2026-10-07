@@ -233,3 +233,57 @@ panel with real crewneck cards (price, description, image); clicking one navigat
 `/products/champion-reverse-weave-crewneck` and rendered the full single-item page (large image,
 $58.00, colors, and a per-size stock table correctly showing L/S/XS/XXL as "Out of stock" and M/XL
 with real quantities) — no stale panel, no scroll issue.
+
+## Problem 8 — Customer Memory
+
+### How chat history is stored
+No new table was needed — the seed database already shipped a `chat_messages` table shaped
+exactly for this (`id, user_id, role, content, products_json, created_at`), analyzed back in
+Problem 2. `db.save_chat_message()` (added in Problem 5) writes one row per turn: the shopper's
+message (`products_json = NULL`) and the assistant's reply (`products_json` = the same `Product`
+list returned to the client, so the saved history can re-render the exact cards the shopper saw).
+`db.get_chat_history(user_id)` reads them back ordered by `id`.
+
+**The guest/logged-in split happens in `main.py`, not just by "is user_id present":**
+`_build_shopper_context()` looks the user up by ID (`db.get_user_by_id`) and only treats them as
+logged in if that row actually exists; `/api/chat` then only calls `save_chat_message` when
+`deps.is_guest` is `False`. A guest (`user_id: null`) or a bad/stale ID both get a normal chat
+reply with nothing written to `chat_messages` — verified by sending a guest message and confirming
+no new row appeared (`SELECT COUNT(*) FROM chat_messages` unchanged) while a logged-in exchange
+immediately added two rows. On reload, `ChatWidget` calls `GET /api/chat/history/{user_id}` on
+mount (Problem 5) — confirmed in-browser that a full page reload while logged in restores the
+entire prior conversation, including product cards, exactly as before the reload.
+
+### What customer fields the agent sees — agent deps, not a tool
+`backend/agent.py` defines `ShopperContext` (a plain dataclass: `is_guest`, `name`, `email`,
+`current_product_id`) and wires it in as the agent's `deps_type`. `main.py` builds one fresh
+`ShopperContext` per request from the real `users` row (never from client-supplied name/email —
+the client only ever sends a `user_id`, so a shopper can't claim to be someone else by editing the
+request body) and passes it to `shop_agent.run(..., deps=...)`.
+
+The agent is told who it's talking to via a **dynamic instructions function**
+(`@shop_agent.instructions`) rather than a tool: it reads `ctx.deps` and injects either "The
+shopper is logged in as {name} ({email})" or "The shopper is browsing as a guest — don't address
+them by name" into the instructions on every run. This was chosen over a callable tool because the
+identity is already known with certainty before the agent does anything — there's no lookup for it
+to perform, so forcing a tool call would just add a round-trip for information it should already
+have. Verified: asking "what is my name and email, according to you?" as user 1 returns "Test
+User, test@campuscustoms.yale.edu"; the same question with `user_id: null` returns "I don't have
+access to your name or email... you're browsing as a guest."
+
+### How page context is passed
+`frontend/src/components/ChatWidget.tsx` reads the current route with `useLocation()` and, right
+before sending a message, checks whether the shopper is on a single product's page
+(`/products/:productId`). If so, it sends `page_context: { product_id: "<that id>" }` alongside
+the usual `message`/`history`/`user_id` in the `POST /api/chat` body (new `PageContext` model in
+`models.py`). `main.py` folds that straight into the same `ShopperContext.current_product_id`
+field used for identity — same dependency-injection pattern, not a separate mechanism.
+
+The same `@shop_agent.instructions` function appends a second line when `current_product_id` is
+set: it names the exact `product_id` the shopper is looking at and tells the agent to treat an
+unqualified "this"/"it" as referring to that product, while still confirming details with
+`get_product_info`/`get_stock` rather than trusting the page context's identity alone for price or
+stock facts. Verified live: on `/products/champion-reverse-weave-crewneck`, asking "do you have
+this in pink?" correctly resolved to that exact crewneck and answered "No — this Champion Reverse
+Weave Crewneck comes in light gray and navy blue, not pink" (matching its real `colors` field),
+with no product named in the question at all.

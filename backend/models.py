@@ -87,10 +87,18 @@ class ChatTurn(BaseModel):
     content: str
 
 
+class PageContext(BaseModel):
+    """What the shopper is currently looking at, so the agent can resolve
+    "do you have this in pink" without the shopper having to name the item."""
+
+    product_id: str | None = None
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     user_id: int | None = None
     history: list[ChatTurn] = Field(default_factory=list)
+    page_context: PageContext | None = None
 
 
 class ChatResponse(BaseModel):

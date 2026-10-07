@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { getChatHistory, imageUrl, sendChat } from "../api";
 import { useAuth } from "../auth";
 import { useSearchResults } from "../searchResults";
@@ -19,6 +19,7 @@ const GREETING: DisplayMessage = {
 export default function ChatWidget() {
   const { user } = useAuth();
   const { setMatches } = useSearchResults();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<DisplayMessage[]>([GREETING]);
@@ -61,12 +62,17 @@ export default function ChatWidget() {
     if (!text || isSending) return;
 
     const history: ChatTurn[] = messages.map((m) => ({ role: m.role, content: m.content }));
+    // Lets the agent resolve "do you have this in pink" when the shopper is
+    // currently looking at one specific product's detail page.
+    const productPageMatch = location.pathname.match(/^\/products\/([^/]+)$/);
+    const pageContext = { product_id: productPageMatch ? decodeURIComponent(productPageMatch[1]) : null };
+
     setMessages((current) => [...current, { role: "user", content: text }]);
     setInput("");
     setError(null);
     setIsSending(true);
     try {
-      const result = await sendChat({ message: text, user_id: user?.id ?? null, history });
+      const result = await sendChat({ message: text, user_id: user?.id ?? null, history, page_context: pageContext });
       setMessages((current) => [
         ...current,
         { role: "assistant", content: result.reply, products: result.products.length > 0 ? result.products : undefined },

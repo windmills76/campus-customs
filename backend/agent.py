@@ -1,10 +1,11 @@
 import os
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, UserPromptPart
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -51,12 +52,47 @@ def _system_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 
+@dataclass
+class ShopperContext:
+    """Agent deps: who's chatting, and what they're currently looking at.
+
+    Built fresh per request in main.py from the logged-in user row (if any)
+    and the frontend's page_context — never guessed or recalled from a
+    previous turn.
+    """
+
+    is_guest: bool
+    name: str | None = None
+    email: str | None = None
+    current_product_id: str | None = None
+
+
 shop_agent = Agent(
+    deps_type=ShopperContext,
     output_type=AgentReply,
     instructions=_system_prompt(),
     tools=[search_catalogue, get_product_info, get_stock],
     name="campus-customs-shop-assistant",
 )
+
+
+@shop_agent.instructions
+def shopper_context_instructions(ctx: RunContext[ShopperContext]) -> str:
+    deps = ctx.deps
+    if deps.is_guest:
+        lines = ["The shopper is browsing as a guest (not logged in) — don't address them by name."]
+    else:
+        lines = [f"The shopper is logged in as {deps.name} ({deps.email})."]
+
+    if deps.current_product_id:
+        lines.append(
+            f'The shopper is currently viewing the product page for product_id="{deps.current_product_id}". '
+            'If they refer to "this", "it", or the item without naming one, assume they mean this '
+            "product unless they clearly describe something else — confirm details with a tool call "
+            "using this product_id before answering."
+        )
+
+    return "\n".join(lines)
 
 
 def _to_model_messages(history: list[ChatTurn]) -> list[ModelMessage]:
@@ -69,10 +105,11 @@ def _to_model_messages(history: list[ChatTurn]) -> list[ModelMessage]:
     return messages
 
 
-async def run_chat(message: str, history: list[ChatTurn]) -> AgentReply:
+async def run_chat(message: str, history: list[ChatTurn], deps: ShopperContext) -> AgentReply:
     result = await shop_agent.run(
         message,
         model=build_model(),
         message_history=_to_model_messages(history),
+        deps=deps,
     )
     return result.output

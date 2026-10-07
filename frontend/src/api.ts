@@ -63,10 +63,15 @@ export function login(payload: LoginPayload): Promise<PublicUser> {
   return postJson<PublicUser>("/api/auth/login", payload);
 }
 
+export interface PageContext {
+  product_id: string | null;
+}
+
 export interface ChatPayload {
   message: string;
   user_id: number | null;
   history: ChatTurn[];
+  page_context?: PageContext | null;
 }
 
 export interface ChatReply {

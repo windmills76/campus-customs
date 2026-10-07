@@ -101,6 +101,14 @@ def get_user_by_email(email: str) -> sqlite3.Row | None:
         conn.close()
 
 
+def get_user_by_id(user_id: int) -> sqlite3.Row | None:
+    conn = _connect()
+    try:
+        return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    finally:
+        conn.close()
+
+
 def save_chat_message(user_id: int, role: str, content: str, products: list[Product] | None = None) -> None:
     conn = _connect()
     try:

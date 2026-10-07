@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 import db
 import security
-from agent import run_chat
+from agent import ShopperContext, run_chat
 from models import ChatRequest, ChatResponse, LoginRequest, Product, PublicUser, SignupRequest
 
 load_dotenv()
@@ -64,13 +64,33 @@ def login(payload: LoginRequest) -> PublicUser:
     return PublicUser(id=row["id"], first_name=row["first_name"], last_name=row["last_name"], email=row["email"])
 
 
+def _build_shopper_context(payload: ChatRequest) -> ShopperContext:
+    product_id = payload.page_context.product_id if payload.page_context else None
+
+    user_row = db.get_user_by_id(payload.user_id) if payload.user_id is not None else None
+    if user_row is None:
+        return ShopperContext(is_guest=True, current_product_id=product_id)
+
+    name = f"{user_row['first_name']} {user_row['last_name']}".strip() or user_row["name"]
+    return ShopperContext(
+        is_guest=False,
+        name=name,
+        email=user_row["email"],
+        current_product_id=product_id,
+    )
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest) -> ChatResponse:
-    agent_reply = await run_chat(payload.message, payload.history)
+    deps = _build_shopper_context(payload)
+    agent_reply = await run_chat(payload.message, payload.history, deps)
     products = [db.get_product(pid) for pid in agent_reply.product_ids]
     products = [p for p in products if p is not None]
 
-    if payload.user_id is not None:
+    # Only logged-in shoppers (a real user_id that resolved to a real user
+    # row) get their conversation persisted — guests can chat, but nothing
+    # is written to chat_messages for them.
+    if not deps.is_guest and payload.user_id is not None:
         db.save_chat_message(payload.user_id, "user", payload.message)
         db.save_chat_message(payload.user_id, "assistant", agent_reply.message, products)
 

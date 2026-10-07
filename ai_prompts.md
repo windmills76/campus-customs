@@ -67,3 +67,12 @@ No follow-up needed.
 > Problem 7 is called Chat search that updates the page. Now we will add a neat feature to the site. when a customer asks about a type of item - for example, what kind of hoodies do you have? - the agent should search the cataloge and the website should dynamically show those matching items as product cards (image, name, price short info). This is an API contract: the agent returns the structure product matches and then the front end renders them on the website. After the dynamic product cards are loaded by the new feature, make sure the same single-item page behaviro build in problem 3 still works: each product card - including the ones the chat just put on the page - should still open that detail view (large image + ful info when clicks. Update prompts/prompt.md and output/harness.md so it is clear how search results reach the page.
 
 No follow-up needed — while verifying in the browser, found and fixed a related issue on my own (the dynamic panel burying the detail page below the fold, and a redundant panel showing over the detail page itself), documented in output/harness.md rather than requiring a follow-up prompt.
+
+---
+
+## Problem 8 — Customer Memory
+
+**Prompt:**
+> Problem 8 is called Customer memory. When a shopper is logged into their account, save their chat history in the databse in an appropraite table and reload it when they return. the agent should know who is chatting (name and email) put this in agent deps or an reqivalent clear pattern and/or tools the agent can call. Also pass enough page context that if someone is on a product page and asks do you have this in pinnk the agent knows which item they mean -- putting code into the agent context to do this would be an option. Guest can sitll chat, but their history won't be saved. it only needs to be saved for logged-in users. Document in harness.md how user chat history is stored, what customer fields the agent sees, and how page context is passed.
+
+No follow-up needed. (Chat history persistence/reload into `chat_messages` already existed from Problem 5; this problem's actual new work was adding `ShopperContext` agent deps for identity + page context, verified by asking the agent to state the shopper's name/email and by testing "do you have this in pink?" on a specific product's detail page.)
