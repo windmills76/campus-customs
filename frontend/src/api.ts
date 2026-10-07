@@ -1,4 +1,4 @@
-import type { Product, PublicUser } from "./types";
+import type { ChatHistoryEntry, ChatTurn, Product, PublicUser } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -61,4 +61,23 @@ export interface LoginPayload {
 
 export function login(payload: LoginPayload): Promise<PublicUser> {
   return postJson<PublicUser>("/api/auth/login", payload);
+}
+
+export interface ChatPayload {
+  message: string;
+  user_id: number | null;
+  history: ChatTurn[];
+}
+
+export interface ChatReply {
+  reply: string;
+  products: Product[];
+}
+
+export function sendChat(payload: ChatPayload): Promise<ChatReply> {
+  return postJson<ChatReply>("/api/chat", payload);
+}
+
+export function getChatHistory(userId: number): Promise<ChatHistoryEntry[]> {
+  return apiFetch<ChatHistoryEntry[]>(`/api/chat/history/${userId}`);
 }

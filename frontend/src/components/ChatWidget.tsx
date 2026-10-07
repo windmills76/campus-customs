@@ -1,40 +1,76 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { getChatHistory, imageUrl, sendChat } from "../api";
+import { useAuth } from "../auth";
+import type { ChatTurn, Product } from "../types";
 
-interface ChatMessage {
+interface DisplayMessage {
   role: "user" | "assistant";
   content: string;
+  products?: Product[];
 }
 
-// TODO(Problem 5): replace this stub with a real call to POST /api/chat on the
-// agent backend. The agent's reply should also be able to return matching
-// products so the page can surface them alongside the chat response.
-async function sendMessage(_history: ChatMessage[], userText: string): Promise<string> {
-  void _history;
-  void userText;
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return "Our shopping assistant is getting ready — check back soon! In the meantime, browse Products to see what's in stock.";
-}
+const GREETING: DisplayMessage = {
+  role: "assistant",
+  content: "Hi! Ask me about Campus Customs gear — I can check real prices and stock for you.",
+};
 
 export default function ChatWidget() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: "Hi! I'll be able to help you find Campus Customs gear soon." },
-  ]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([GREETING]);
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, isSending]);
+
+  useEffect(() => {
+    if (!user) {
+      setMessages([GREETING]);
+      return;
+    }
+    getChatHistory(user.id)
+      .then((history) => {
+        if (history.length === 0) {
+          setMessages([GREETING]);
+          return;
+        }
+        setMessages(
+          history.map((entry) => ({
+            role: entry.role,
+            content: entry.content,
+            products: entry.products.length > 0 ? entry.products : undefined,
+          })),
+        );
+      })
+      .catch(() => {
+        // Keep the default greeting if history can't be loaded.
+      });
+  }, [user]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const text = input.trim();
     if (!text || isSending) return;
 
-    const nextMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
-    setMessages(nextMessages);
+    const history: ChatTurn[] = messages.map((m) => ({ role: m.role, content: m.content }));
+    setMessages((current) => [...current, { role: "user", content: text }]);
     setInput("");
+    setError(null);
     setIsSending(true);
     try {
-      const reply = await sendMessage(nextMessages, text);
-      setMessages((current) => [...current, { role: "assistant", content: reply }]);
+      const result = await sendChat({ message: text, user_id: user?.id ?? null, history });
+      setMessages((current) => [
+        ...current,
+        { role: "assistant", content: result.reply, products: result.products.length > 0 ? result.products : undefined },
+      ]);
+    } catch {
+      setError("Something went wrong reaching the shop assistant. Please try again.");
     } finally {
       setIsSending(false);
     }
@@ -50,13 +86,32 @@ export default function ChatWidget() {
               ×
             </button>
           </div>
-          <div className="chat-messages">
+          <div className="chat-messages" ref={messagesRef}>
             {messages.map((message, index) => (
               <div key={index} className={`chat-message chat-message-${message.role}`}>
                 {message.content}
+                {message.products && message.products.length > 0 && (
+                  <div className="chat-products">
+                    {message.products.map((product) => (
+                      <Link
+                        key={product.product_id}
+                        to={`/products/${product.product_id}`}
+                        className="chat-product-card"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <img src={imageUrl(product.image_url)} alt={product.name} />
+                        <div>
+                          <div className="chat-product-name">{product.name}</div>
+                          <div className="chat-product-price">${product.price.toFixed(2)}</div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {isSending && <div className="chat-message chat-message-assistant">Typing…</div>}
+            {error && <div className="chat-message chat-message-assistant chat-message-error">{error}</div>}
           </div>
           <form className="chat-input-row" onSubmit={handleSubmit}>
             <input

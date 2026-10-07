@@ -99,3 +99,39 @@ def get_user_by_email(email: str) -> sqlite3.Row | None:
         return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     finally:
         conn.close()
+
+
+def save_chat_message(user_id: int, role: str, content: str, products: list[Product] | None = None) -> None:
+    conn = _connect()
+    try:
+        products_json = json.dumps([p.model_dump() for p in products]) if products else None
+        conn.execute(
+            "INSERT INTO chat_messages (user_id, role, content, products_json) VALUES (?, ?, ?, ?)",
+            (user_id, role, content, products_json),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_chat_history(user_id: int) -> list[dict]:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT role, content, products_json, created_at FROM chat_messages "
+            "WHERE user_id = ? ORDER BY id",
+            (user_id,),
+        ).fetchall()
+        history = []
+        for row in rows:
+            history.append(
+                {
+                    "role": row["role"],
+                    "content": row["content"],
+                    "products": json.loads(row["products_json"]) if row["products_json"] else [],
+                    "created_at": row["created_at"],
+                }
+            )
+        return history
+    finally:
+        conn.close()

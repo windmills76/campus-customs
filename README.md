@@ -1,12 +1,17 @@
 # Campus Customs
 
 A Yale-branded merch shop built for AI Foundations Homework 4: a React + Vite + TypeScript
-storefront backed by a FastAPI API, growing into a Pydantic AI-powered shopping assistant.
+storefront backed by a FastAPI API, with a Pydantic AI shopping-assistant agent as its brain.
 
 ## Project layout
 
 ```
-backend/    FastAPI app (products API, image serving; agent brain comes in a later problem)
+backend/
+  main.py           FastAPI app (run with uvicorn) — products, auth, and chat routes
+  agent.py          Pydantic AI agent wiring (prompt file + Portkey-hosted model)
+  tools.py          Tools the agent can call (catalogue search, stock lookup)
+  prompts/prompt.md Agent system prompt (Campus Customs voice + safety rules)
+  models.py         Shared Pydantic / Pydantic AI types
 frontend/   React + Vite + TypeScript storefront
 data/       SQLite database + product images (gitignored, NOT committed — see below)
 output/     harness.md — living design/spec notes, started in Problem 2
@@ -35,6 +40,11 @@ uvicorn main:app --reload --port 8000
 ```
 
 Health check: `curl http://localhost:8000/api/health`
+
+The chat agent needs a `PORTKEY_API_KEY` (and optionally `MODEL_NAME`, `PORTKEY_BASE_URL`) in a
+`.env` file. `backend/agent.py` looks for `.env` in `backend/` and walks up parent directories, so
+a shared `.env` higher up in a course/workspace folder is picked up automatically — no need to
+copy the key into this repo.
 
 ## Running the frontend
 

@@ -72,3 +72,58 @@ The plaintext password itself is never written anywhere: not to the DB, not to l
 - `POST /api/auth/login` — looks up the user by email, verifies the password against the stored hash, and returns a generic "Invalid email or password" on any failure (wrong email or wrong password look identical to the client, so the API doesn't reveal which accounts exist).
 
 Confirmed working: the seeded `test@campuscustoms.yale.edu` / `password` account logs in successfully, and a brand-new signup (first/last name, email, password+confirm) is both stored correctly (hashed, unique salt) and can immediately log back in.
+
+## Problem 5 — Pydantic AI Agent Backend
+
+### How the front end talks to FastAPI
+`frontend/src/components/ChatWidget.tsx` POSTs JSON to `POST /api/chat` on the same FastAPI app
+that already serves products (`backend/main.py`, still the file you run with `uvicorn main:app`):
+
+```
+{ "message": "<shopper text>", "user_id": <id or null>, "history": [{role, content}, ...] }
+→ { "reply": "<assistant text>", "products": [<full Product objects>, ...] }
+```
+
+- `history` is the conversation so far (role/content only, no products) built client-side from
+  the widget's own message state — the backend uses it to give the agent real multi-turn memory.
+- `user_id` is `null` for guests; chat still works but nothing is saved. When a shopper is logged
+  in (via the `useAuth` context from Problem 4), their id is sent along and both the user's
+  message and the assistant's reply are written to the existing `chat_messages` table
+  (`db.save_chat_message`), with `products_json` populated exactly like the seed data's shape.
+- On mount (and whenever the logged-in user changes), the widget calls
+  `GET /api/chat/history/{user_id}` to restore prior turns — including their attached product
+  cards — so a shopper's conversation survives a page reload.
+- The reply's `products` array is rendered as small cards (image, name, price) directly under the
+  assistant's bubble, each linking to that product's detail page — this is the "matching items
+  appear on the page" behavior from the original goal.
+
+### How the agent is loaded
+`backend/agent.py` builds the agent once at import time:
+1. **Prompt file**: `backend/prompts/prompt.md` is read via `Path.read_text()` and passed as the
+   agent's `instructions` — Campus Customs voice plus the non-negotiable safety rules (never guess
+   price/stock, say "out of stock" plainly, stay on-topic, don't leak internal details). This file
+   is meant to grow in later problems.
+2. **Model**: the course's shared `PORTKEY_API_KEY` lives in the course-root `.env`, several
+   directories above this homework folder — `agent.py` walks up from `backend/` through parent
+   directories at import time and loads whichever `.env` it finds first (same pattern used in the
+   course's Lecture 11 examples). An `AsyncOpenAI` client is pointed at Portkey's gateway
+   (`PORTKEY_BASE_URL`, default `https://api.portkey.ai/v1`) with `x-portkey-provider: openai`,
+   then wrapped in `pydantic_ai.models.openai.OpenAIResponsesModel` via `OpenAIProvider`. The
+   model alias (`MODEL_NAME`, default `gpt-6-luna`) is a Portkey-side alias, not a literal OpenAI
+   model name, and is overridable by env var.
+3. **Tools** (`backend/tools.py`): `search_catalogue` (keyword overlap search over the real
+   catalogue), `get_product_details` (exact product lookup), `get_stock` (real inventory, by size
+   or overall) — these are the only way the agent is allowed to learn about products, so it can't
+   hallucinate price or availability.
+4. **Structured output** (`backend/models.py:AgentReply`): the agent itself only returns
+   `{message, product_ids}` — a short reply plus the IDs of products it actually looked up this
+   turn. `main.py`'s `/api/chat` route hydrates those IDs into full `Product` records from the DB
+   before responding, so the client never trusts the model for product data, only for which
+   products are relevant.
+
+Confirmed working end-to-end in the browser: asking about a real category (e.g. "navy hoodies",
+"Saybrook college gear") returns an honest reply with matching product cards; asking about
+something not in the catalogue (e.g. "Yale surfboards") gets a plain "we don't carry that" instead
+of an invented answer; asking something off-topic (e.g. "write me a Python scraper") gets
+redirected back to shopping; a follow-up using "it" ("do you have it in a small?") correctly
+resolves against conversation history and checks real per-size stock.

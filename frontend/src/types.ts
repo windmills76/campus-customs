@@ -10,6 +10,18 @@ export interface PublicUser {
   email: string;
 }
 
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatHistoryEntry {
+  role: "user" | "assistant";
+  content: string;
+  products: Product[];
+  created_at: string;
+}
+
 export interface Product {
   product_id: string;
   name: string;

@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 
 import db
 import security
-from models import LoginRequest, Product, PublicUser, SignupRequest
+from agent import run_chat
+from models import ChatRequest, ChatResponse, LoginRequest, Product, PublicUser, SignupRequest
 
 load_dotenv()
 
@@ -61,3 +62,21 @@ def login(payload: LoginRequest) -> PublicUser:
     if row is None or not security.verify_password(payload.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     return PublicUser(id=row["id"], first_name=row["first_name"], last_name=row["last_name"], email=row["email"])
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(payload: ChatRequest) -> ChatResponse:
+    agent_reply = await run_chat(payload.message, payload.history)
+    products = [db.get_product(pid) for pid in agent_reply.product_ids]
+    products = [p for p in products if p is not None]
+
+    if payload.user_id is not None:
+        db.save_chat_message(payload.user_id, "user", payload.message)
+        db.save_chat_message(payload.user_id, "assistant", agent_reply.message, products)
+
+    return ChatResponse(reply=agent_reply.message, products=products)
+
+
+@app.get("/api/chat/history/{user_id}")
+def chat_history(user_id: int) -> list[dict]:
+    return db.get_chat_history(user_id)
