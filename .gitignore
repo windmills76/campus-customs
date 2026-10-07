@@ -1,0 +1,21 @@
+# Data (never commit the database or product images)
+data/
+
+# Python
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Env
+.env
+backend/.env
+frontend/.env
+
+# Editor/OS
+.DS_Store

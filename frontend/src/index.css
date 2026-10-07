@@ -1,0 +1,24 @@
+:root {
+  --yale-blue: #00356b;
+  --yale-blue-light: #286dc0;
+  --ink: #16213a;
+  --paper: #ffffff;
+  --bg: #f5f7fa;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
