@@ -43,3 +43,32 @@ One row per shopper account.
 | `first_name` / `last_name` | Used for personalized greetings ("Hi Ada") without needing to parse `name`. |
 
 Note: the DB also ships a `chat_messages` table (id, user_id, role, content, products_json, created_at) with a few seeded example rows — useful as a reference for the exact shape the agent's product recommendations should take (`products_json` mirrors the catalogue+inventory fields plus a derived `image_url` and `total_stock`), but it isn't part of Problem 2's required scope.
+
+## Problem 4 — Create Account & Login
+
+### What we store for a user
+Signup only ever writes to the existing `users` row shape — no new columns, no separate credentials table:
+
+| Field | Set from |
+|---|---|
+| `first_name`, `last_name` | Signup form fields, stored as-is |
+| `name` | Derived as `"{first_name} {last_name}"` for display/legacy use |
+| `email` | Signup form field, lowercased + trimmed before storage so lookups are case-insensitive; the table's `UNIQUE` constraint on `email` is what actually enforces "no duplicate accounts," not application logic |
+| `password_hash` | Never the plaintext password — see below |
+| `created_at` | Left to the column's own `DEFAULT (datetime('now'))`, not set by the app |
+
+The plaintext password itself is never written anywhere: not to the DB, not to logs, not echoed back in any API response (`PublicUser` only ever exposes `id`, `first_name`, `last_name`, `email`).
+
+### How passwords are protected
+`backend/security.py` hashes with **PBKDF2-HMAC-SHA256, 120,000 iterations, a fresh random 16-byte salt per user**, stored as `pbkdf2_sha256$<salt>$<hex digest>`. This format was reverse-engineered to match the seed database's existing `test@campuscustoms.yale.edu` row exactly (same algorithm tag and hash length), so both seeded and newly-created accounts verify through the same `verify_password()` path — one code path, not a legacy-vs-new split.
+
+- **Why hashing, not encryption:** hashing is one-way. Even with full read access to `campus_customs.db`, an attacker (human or AI) recovers hash digests, not passwords — they'd have to brute-force each one individually, and the salt means two users with the same password get different hashes, defeating precomputed/rainbow-table attacks.
+- **Why a per-user random salt:** without it, identical passwords would produce identical hashes, which leaks information and makes precomputed attacks cheap. `secrets.token_hex(16)` is cryptographically random, not predictable.
+- **Why 120,000 iterations:** makes each guess computationally expensive, slowing down brute-force/offline cracking attempts without materially affecting real login latency.
+- **Constant-time comparison:** verification uses `hmac.compare_digest()` rather than `==`, so timing differences can't be used to guess the hash byte-by-byte.
+
+### Endpoints
+- `POST /api/auth/signup` — validates first/last name, a plausible email shape, and a minimum 8-character password (`backend/models.py:SignupRequest`); hashes the password and inserts the user; returns 409 if the email is already taken (relying on the DB's unique index) rather than leaking which emails exist via a separate pre-check.
+- `POST /api/auth/login` — looks up the user by email, verifies the password against the stored hash, and returns a generic "Invalid email or password" on any failure (wrong email or wrong password look identical to the client, so the API doesn't reveal which accounts exist).
+
+Confirmed working: the seeded `test@campuscustoms.yale.edu` / `password` account logs in successfully, and a brand-new signup (first/last name, email, password+confirm) is both stored correctly (hashed, unique salt) and can immediately log back in.

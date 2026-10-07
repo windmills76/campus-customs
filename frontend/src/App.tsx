@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import "./App.css";
+import { AuthProvider } from "./auth";
 import NavBar from "./components/NavBar";
 import ChatWidget from "./components/ChatWidget";
 import Home from "./pages/Home";
@@ -11,19 +12,21 @@ import CreateAccount from "./pages/CreateAccount";
 
 export default function App() {
   return (
-    <div className="app-shell">
-      <NavBar />
-      <main className="app-main">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/products/:productId" element={<ProductDetail />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/create-account" element={<CreateAccount />} />
-        </Routes>
-      </main>
-      <ChatWidget />
-    </div>
+    <AuthProvider>
+      <div className="app-shell">
+        <NavBar />
+        <main className="app-main">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/products/:productId" element={<ProductDetail />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/create-account" element={<CreateAccount />} />
+          </Routes>
+        </main>
+        <ChatWidget />
+      </div>
+    </AuthProvider>
   );
 }

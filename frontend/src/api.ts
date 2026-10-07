@@ -1,13 +1,34 @@
-import type { Product } from "./types";
+import type { Product, PublicUser } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
-async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
+function extractErrorMessage(body: unknown, fallback: string): string {
+  if (body && typeof body === "object" && "detail" in body) {
+    const detail = (body as { detail: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0] as { msg?: string };
+      if (first.msg) return first.msg;
+    }
+  }
+  return fallback;
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, init);
   if (!res.ok) {
-    throw new Error(`Request to ${path} failed: ${res.status}`);
+    const body = await res.json().catch(() => null);
+    throw new Error(extractErrorMessage(body, `Request to ${path} failed: ${res.status}`));
   }
   return res.json() as Promise<T>;
+}
+
+function postJson<T>(path: string, data: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 }
 
 export function imageUrl(path: string): string {
@@ -20,4 +41,24 @@ export function getProducts(): Promise<Product[]> {
 
 export function getProduct(productId: string): Promise<Product> {
   return apiFetch<Product>(`/api/products/${encodeURIComponent(productId)}`);
+}
+
+export interface SignupPayload {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+}
+
+export function signup(payload: SignupPayload): Promise<PublicUser> {
+  return postJson<PublicUser>("/api/auth/signup", payload);
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export function login(payload: LoginPayload): Promise<PublicUser> {
+  return postJson<PublicUser>("/api/auth/login", payload);
 }

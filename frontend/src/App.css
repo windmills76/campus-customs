@@ -51,6 +51,19 @@
   border-bottom-color: white;
 }
 
+.navbar-link-button {
+  background: none;
+  border: none;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.navbar-greeting {
+  opacity: 0.9;
+}
+
 /* Buttons */
 .button-primary {
   display: inline-block;
@@ -231,6 +244,28 @@
   border: 1px solid #ccc;
   border-radius: 6px;
   font-size: 1rem;
+}
+
+.auth-form input.input-error {
+  border-color: #c0392b;
+}
+
+.field-error {
+  color: #c0392b;
+  font-size: 0.8rem;
+}
+
+.form-error {
+  color: #c0392b;
+  background: #fdecea;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.auth-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Chat widget */

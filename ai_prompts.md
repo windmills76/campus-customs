@@ -28,3 +28,15 @@ No follow-up needed.
 > Problem 3 is called Build the campus customs website. Scaffold a React + Vite + Typescript front end for campus customs. put a nav bar at the top that links to the main pages: home, products, about us, log in, and create account. Pull campus customs-style wording from yalebulldogblue.com for Home and About Us, but write these pages in a different voice and not exactly what's written on the website. On the products page of the website, show product images from the cataloge (use the image paths in the databse)( with basic product information like name price and a short description. Make each product open a single-item page (large image on the left, full product text on the right with description, price, sizes/stock when you have them). clicking a card on products should take the shopper there. Add a chat interface in the bottom right of the site -- a floating chat panel is perfect. It does not need to talk to an agent yet - a stub that will call the backend later is enough for this problem. We will need a small API soon to read the databse and we need to start a simple FastAPI app in backend/main.py just to serve products and images, then grow it into the agent backend in problem 5.
 
 No follow-up needed.
+
+---
+
+## Problem 4 — Create Account and Login
+
+**Prompt:**
+> Problem 4 is called create account and login. Build a normal creat-account/login flow. Create account should ask for first name, last name, email, password (confirm password where it makes the user type the same password twice and won't allow submission until they are identical). Log in should be email and password. New account go into the users table. Make sure to store passwords securely so hackers (human or AI) cannot access them by hashing them. The seed database already has a test use you can use while building: email: test@campuscustoms.yale.edu password: password. Confirm you can log in as that user and that a brand new account you create works.
+
+**Follow-up:**
+> update output/harness.md with how auth works (what you store for a user and how passwords are protected)
+
+What was lacking from the first prompt: it specified the signup/login behavior but not that the harness file (started in Problem 2) should capture the auth/security design, so a follow-up called that out explicitly.

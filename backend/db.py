@@ -3,7 +3,11 @@ import os
 import sqlite3
 from pathlib import Path
 
-from models import Product, SizeStock
+from models import PublicUser, Product, SizeStock
+
+
+class EmailAlreadyRegistered(Exception):
+    pass
 
 BACKEND_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.getenv("DB_PATH", BACKEND_DIR / ".." / "data" / "campus_customs.db")).resolve()
@@ -59,5 +63,39 @@ def get_product(product_id: str) -> Product | None:
         if row is None:
             return None
         return _row_to_product(row, _inventory_for(conn, product_id))
+    finally:
+        conn.close()
+
+
+def _row_to_public_user(row: sqlite3.Row) -> PublicUser:
+    return PublicUser(
+        id=row["id"],
+        first_name=row["first_name"],
+        last_name=row["last_name"],
+        email=row["email"],
+    )
+
+
+def create_user(first_name: str, last_name: str, email: str, password_hash: str) -> PublicUser:
+    conn = _connect()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO users (name, email, password_hash, first_name, last_name) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (f"{first_name} {last_name}", email, password_hash, first_name, last_name),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        return _row_to_public_user(row)
+    except sqlite3.IntegrityError as exc:
+        raise EmailAlreadyRegistered(email) from exc
+    finally:
+        conn.close()
+
+
+def get_user_by_email(email: str) -> sqlite3.Row | None:
+    conn = _connect()
+    try:
+        return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     finally:
         conn.close()

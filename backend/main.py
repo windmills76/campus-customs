@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 import db
-from models import Product
+import security
+from models import LoginRequest, Product, PublicUser, SignupRequest
 
 load_dotenv()
 
@@ -43,3 +44,20 @@ def get_product(product_id: str) -> Product:
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
+
+
+@app.post("/api/auth/signup", response_model=PublicUser, status_code=201)
+def signup(payload: SignupRequest) -> PublicUser:
+    password_hash = security.hash_password(payload.password)
+    try:
+        return db.create_user(payload.first_name, payload.last_name, payload.email, password_hash)
+    except db.EmailAlreadyRegistered:
+        raise HTTPException(status_code=409, detail="An account with that email already exists")
+
+
+@app.post("/api/auth/login", response_model=PublicUser)
+def login(payload: LoginRequest) -> PublicUser:
+    row = db.get_user_by_email(payload.email.strip().lower())
+    if row is None or not security.verify_password(payload.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return PublicUser(id=row["id"], first_name=row["first_name"], last_name=row["last_name"], email=row["email"])

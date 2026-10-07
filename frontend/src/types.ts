@@ -3,6 +3,13 @@ export interface SizeStock {
   quantity: number;
 }
 
+export interface PublicUser {
+  id: number;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+}
+
 export interface Product {
   product_id: string;
   name: string;
