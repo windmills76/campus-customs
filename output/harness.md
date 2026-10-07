@@ -178,3 +178,58 @@ quantity of 0 must be stated plainly. Verified against the live DB: for the Bool
 ($32.00, L=0 in inventory), the agent correctly quoted $32.00, said "out of stock" for a large,
 and listed the exact per-size breakdown (XS 12, S 12, M 15, L out of stock, XL 2, XXL 20) when
 asked generally — all matching a direct `sqlite3` query against `campus_customs.db`.
+
+## Problem 7 — Chat Search That Updates the Page
+
+### The API contract
+Nothing changed in the HTTP contract from Problem 5/6 — this problem is about what the *frontend*
+does with the `products` array `POST /api/chat` already returns:
+
+```
+agent (search_catalogue → product_ids in AgentReply)
+  → main.py hydrates product_ids into full Product records
+  → ChatResponse.products: Product[]   (unchanged shape)
+  → frontend: ChatWidget receives { reply, products }
+```
+
+The contract is: **the agent decides which products are relevant by returning their IDs; the
+frontend is responsible for turning that list into visible product cards.** The agent never
+renders anything itself — it just says "these are the real matches," and the page does the rest.
+
+### How the results reach the page
+`frontend/src/searchResults.tsx` is a small React context (`SearchResultsProvider`/
+`useSearchResults`), separate from the auth context, holding just `{ query, matches }` for the
+most recent chat search. `App.tsx` wraps the whole app in it, so it's readable from any route —
+the chat widget isn't tied to one page, so the result of a search shouldn't be either.
+
+1. `ChatWidget.tsx` already renders small inline product thumbnails in the chat bubble itself
+   (unchanged from Problem 5) — that's immediate in-conversation confirmation.
+2. Whenever a chat reply includes `products`, `ChatWidget` additionally calls
+   `setMatches(userMessage, products)` on the shared context.
+3. `components/ProductMatchesPanel.tsx` reads that context and — reusing the exact same
+   `.product-grid` / `.product-card` markup as `pages/Products.tsx` — renders full cards (image,
+   name, price, short description) in a labeled "From chat: "..."" section mounted in `App.tsx`
+   right below the nav bar, above whatever page content is currently routed. Because it's mounted
+   above `<Routes>`, it updates live regardless of which page the shopper is on when they chat —
+   confirmed by asking "what kind of hoodies do you have?" while on the About page and watching
+   the panel appear there immediately.
+
+### Keeping the Problem 3 single-item page working for these cards
+The panel's cards are `<Link to={/products/:productId}>`, the identical route and `ProductDetail`
+component every other product card in the app already uses (Products grid, chat-bubble
+thumbnails) — there is only one detail-page implementation, so there was nothing new to keep in
+sync. Two real issues did surface and got fixed while verifying this in the browser:
+
+- The panel stayed mounted above the routed content, so clicking one of its cards navigated
+  correctly but left the actual detail view scrolled out of view below the still-visible grid,
+  looking like nothing happened. Fixed with a small `ScrollToTop` effect in `App.tsx` that scrolls
+  to the top of the page on every route change.
+- Even after scrolling, showing a grid of *other* matches above the *one* product the shopper just
+  opened was confusing. `ProductMatchesPanel` now hides itself on `/products/:productId` routes
+  specifically (checked via `useLocation`), while still showing on every other page.
+
+Verified end-to-end: asking "what crewnecks do you sell?" from the About page populated the page
+panel with real crewneck cards (price, description, image); clicking one navigated to
+`/products/champion-reverse-weave-crewneck` and rendered the full single-item page (large image,
+$58.00, colors, and a per-size stock table correctly showing L/S/XS/XXL as "Out of stock" and M/XL
+with real quantities) — no stale panel, no scroll issue.

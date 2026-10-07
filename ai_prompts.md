@@ -58,3 +58,12 @@ No follow-up needed.
 > Problem 67 is called Tools: product info and stock. Give the agent tools that look up real information from campus_customs.db: product description, price, how many are in stock (by size and when the customer asks). The agent must use the database -- it should not invent prices or quantities. If a size is out of stock, say so clearly. Expand prompts/prompt.md so the agent knows to call these tools for price and stock questions. add or update return types in models.py. IN output/harness.md, list each tool and explain which model fields you chose for lookup results and why.
 
 No follow-up needed.
+
+---
+
+## Problem 7 — Chat Search That Updates the Page
+
+**Prompt:**
+> Problem 7 is called Chat search that updates the page. Now we will add a neat feature to the site. when a customer asks about a type of item - for example, what kind of hoodies do you have? - the agent should search the cataloge and the website should dynamically show those matching items as product cards (image, name, price short info). This is an API contract: the agent returns the structure product matches and then the front end renders them on the website. After the dynamic product cards are loaded by the new feature, make sure the same single-item page behaviro build in problem 3 still works: each product card - including the ones the chat just put on the page - should still open that detail view (large image + ful info when clicks. Update prompts/prompt.md and output/harness.md so it is clear how search results reach the page.
+
+No follow-up needed — while verifying in the browser, found and fixed a related issue on my own (the dynamic panel burying the detail page below the fold, and a redundant panel showing over the detail page itself), documented in output/harness.md rather than requiring a follow-up prompt.

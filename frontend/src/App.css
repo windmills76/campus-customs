@@ -123,6 +123,43 @@
   max-width: 720px;
 }
 
+/* Dynamic chat search results panel (Problem 7) */
+.search-results-panel {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 0;
+}
+
+.search-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--yale-blue);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.search-results-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--yale-blue);
+}
+
+.search-results-clear {
+  background: none;
+  border: 1px solid var(--yale-blue);
+  color: var(--yale-blue);
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.search-results-clear:hover {
+  background: var(--yale-blue);
+  color: white;
+}
+
 /* Products grid */
 .product-grid {
   display: grid;

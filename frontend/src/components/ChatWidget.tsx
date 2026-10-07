@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getChatHistory, imageUrl, sendChat } from "../api";
 import { useAuth } from "../auth";
+import { useSearchResults } from "../searchResults";
 import type { ChatTurn, Product } from "../types";
 
 interface DisplayMessage {
@@ -17,6 +18,7 @@ const GREETING: DisplayMessage = {
 
 export default function ChatWidget() {
   const { user } = useAuth();
+  const { setMatches } = useSearchResults();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<DisplayMessage[]>([GREETING]);
@@ -69,6 +71,11 @@ export default function ChatWidget() {
         ...current,
         { role: "assistant", content: result.reply, products: result.products.length > 0 ? result.products : undefined },
       ]);
+      if (result.products.length > 0) {
+        // Drives the page-level ProductMatchesPanel (Problem 7) — the same
+        // search results also shown inline above, now surfaced on the page.
+        setMatches(text, result.products);
+      }
     } catch {
       setError("Something went wrong reaching the shop assistant. Please try again.");
     } finally {
