@@ -22,26 +22,45 @@ def _searchable_text(product: Product) -> str:
     )
 
 
-def search_catalogue(query: str, max_results: int = 6) -> list[Product]:
-    """Search the real product catalogue by keyword overlap and return matches.
+def search_catalogue(
+    query: str,
+    max_results: int = 6,
+    max_price: float | None = None,
+    min_price: float | None = None,
+) -> list[Product]:
+    """Search the real product catalogue by keyword overlap, optionally bounded by price.
 
-    Use this before describing, pricing, or recommending any product. Returns
-    an empty list if nothing in the catalogue matches the query — that means
-    the store doesn't carry it, not that the search failed.
+    Use this before describing, pricing, or recommending any product. Pass
+    max_price/min_price whenever the shopper gives a budget (e.g. "under $70",
+    "between $30 and $50") so the real catalogue price filters the results —
+    don't try to judge which results fit a budget yourself from the list.
+    query can be empty if the shopper only gave a budget with no category
+    (e.g. "what's under $35?"). Returns an empty list if nothing in the
+    catalogue matches (or nothing fits the budget) — that means the store
+    doesn't carry it, not that the search failed.
     """
     query_tokens = _tokenize(query)
-    if not query_tokens:
+
+    if query_tokens:
+        scored: list[tuple[int, Product]] = []
+        for product in db.list_products():
+            product_tokens = _tokenize(_searchable_text(product))
+            score = len(query_tokens & product_tokens)
+            if score > 0:
+                scored.append((score, product))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        candidates = [product for _, product in scored]
+    elif max_price is not None or min_price is not None:
+        candidates = sorted(db.list_products(), key=lambda p: p.price)
+    else:
         return []
 
-    scored: list[tuple[int, Product]] = []
-    for product in db.list_products():
-        product_tokens = _tokenize(_searchable_text(product))
-        score = len(query_tokens & product_tokens)
-        if score > 0:
-            scored.append((score, product))
+    if max_price is not None:
+        candidates = [p for p in candidates if p.price <= max_price]
+    if min_price is not None:
+        candidates = [p for p in candidates if p.price >= min_price]
 
-    scored.sort(key=lambda item: item[0], reverse=True)
-    return [product for _, product in scored[:max_results]]
+    return candidates[:max_results]
 
 
 def get_product_info(product_id: str) -> ProductInfoResult:

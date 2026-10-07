@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import time
 from pathlib import Path
 
 from models import PublicUser, Product, SizeStock
@@ -12,6 +13,15 @@ class EmailAlreadyRegistered(Exception):
 BACKEND_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.getenv("DB_PATH", BACKEND_DIR / ".." / "data" / "campus_customs.db")).resolve()
 MEDIA_URL_PREFIX = "/media/products/"
+
+# Usability improvement (Problem 9, agent/backend #1): list_products() does a
+# full catalogue scan plus one inventory query per product, and
+# tools.search_catalogue() calls it on nearly every chat turn. Nothing in
+# this app writes to the catalogue/inventory at runtime, so a short-lived
+# cache is safe and cuts that repeated full scan to once per TTL window —
+# faster replies, fewer DB round-trips per tool call.
+_CATALOGUE_CACHE_TTL_SECONDS = 60
+_catalogue_cache: tuple[float, list[Product]] | None = None
 
 
 def _connect() -> sqlite3.Connection:
@@ -46,12 +56,23 @@ def _inventory_for(conn: sqlite3.Connection, product_id: str) -> list[SizeStock]
 
 
 def list_products() -> list[Product]:
+    global _catalogue_cache
+
+    now = time.monotonic()
+    if _catalogue_cache is not None:
+        cached_at, products = _catalogue_cache
+        if now - cached_at < _CATALOGUE_CACHE_TTL_SECONDS:
+            return products
+
     conn = _connect()
     try:
         rows = conn.execute("SELECT * FROM catalogue ORDER BY name").fetchall()
-        return [_row_to_product(row, _inventory_for(conn, row["product_id"])) for row in rows]
+        products = [_row_to_product(row, _inventory_for(conn, row["product_id"])) for row in rows]
     finally:
         conn.close()
+
+    _catalogue_cache = (now, products)
+    return products
 
 
 def get_product(product_id: str) -> Product | None:
