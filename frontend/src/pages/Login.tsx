@@ -28,8 +28,8 @@ export default function Login() {
 
   return (
     <div className="page page-auth">
-      <h1>Log In</h1>
-      <form className="auth-form" onSubmit={handleSubmit}>
+      <h1 className="glass-heading">Log In</h1>
+      <form className="auth-form glass-surface" onSubmit={handleSubmit}>
         {error && <div className="form-error">{error}</div>}
         <label>
           Email

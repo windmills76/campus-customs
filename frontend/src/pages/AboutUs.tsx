@@ -1,7 +1,7 @@
 export default function AboutUs() {
   return (
     <div className="page page-about">
-      <h1>About Campus Customs</h1>
+      <h1 className="glass-heading">About Campus Customs</h1>
       <p>
         We started Campus Customs with one simple idea: a university this old deserves merch that
         doesn't feel mass-produced. Every piece in our shop nods to something specific — a

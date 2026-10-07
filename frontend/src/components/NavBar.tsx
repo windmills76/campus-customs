@@ -29,7 +29,7 @@ export default function NavBar() {
 
   return (
     <header className="navbar">
-      <NavLink to="/" className="navbar-brand" end onClick={closeMenu}>
+      <NavLink to="/" className="navbar-brand glass-heading" end onClick={closeMenu}>
         Campus Customs
       </NavLink>
       <button

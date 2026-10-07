@@ -29,7 +29,7 @@ export default function ProductDetail() {
       <div className="product-detail-layout">
         <img src={imageUrl(product.image_url)} alt={product.name} className="product-detail-image" />
         <div className="product-detail-info">
-          <h1>{product.name}</h1>
+          <h1 className="glass-heading">{product.name}</h1>
           <p className="product-price">${product.price.toFixed(2)}</p>
           <p>{product.description}</p>
 
@@ -48,7 +48,13 @@ export default function ProductDetail() {
               {product.inventory.map((item) => (
                 <tr key={item.size}>
                   <td>{item.size}</td>
-                  <td>{item.quantity > 0 ? item.quantity : "Out of stock"}</td>
+                  <td>
+                    {item.quantity > 0 ? (
+                      <span className="stock-pill in-stock">In stock · {item.quantity}</span>
+                    ) : (
+                      <span className="stock-pill out-of-stock">Out of stock</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

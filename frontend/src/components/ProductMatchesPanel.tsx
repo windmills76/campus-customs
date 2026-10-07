@@ -25,7 +25,7 @@ export default function ProductMatchesPanel() {
       </div>
       <div className="product-grid">
         {matches.map((product) => (
-          <Link key={product.product_id} to={`/products/${product.product_id}`} className="product-card">
+          <Link key={product.product_id} to={`/products/${product.product_id}`} className="product-card glass-surface">
             <img src={imageUrl(product.image_url)} alt={product.name} />
             <h3>{product.name}</h3>
             <p className="product-price">${product.price.toFixed(2)}</p>

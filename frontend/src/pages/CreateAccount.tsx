@@ -43,8 +43,8 @@ export default function CreateAccount() {
 
   return (
     <div className="page page-auth">
-      <h1>Create Account</h1>
-      <form className="auth-form" onSubmit={handleSubmit}>
+      <h1 className="glass-heading">Create Account</h1>
+      <form className="auth-form glass-surface" onSubmit={handleSubmit}>
         {error && <div className="form-error">{error}</div>}
         <label>
           First Name
