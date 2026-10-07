@@ -49,3 +49,12 @@ What was lacking from the first prompt: it specified the signup/login behavior b
 > Problem 5 is called pydantic ai agent backend. Build the shop chatbot as a pydantic ai agent behind fast API, plugged into the front-end chat widget. Put the api app in backend/main.py that is the file you run with uvicorn. keep the agent as these four files next to it: backend/prompts/prompt.md - system prompt to be grown later, backend/agent.py 0 agent entry and wiring, backend/tools.py - tools the agent can call and backend/models.py - pydantic/pydantic ai structured types. in main.py, expose a chat route so a message formt eh wesbite reutnr a reply form the agent and whatever else you need for products/auth. you will need the ai model API key found in the ai foundations folder on this computer. Put campus customs cvoice and safety basics into prompts/prompt.md and we will grow this later. start or update types in models.py for chat replies and product cards as needs. in output/harness.md, note how the front end talks to fastAPI and how the agent is loaded (prompt file + model). make sure the backend runs from the backend/ folder like this: uvicorn main:app --reload --port 8000
 
 No follow-up needed.
+
+---
+
+## Problem 6 — Tools: Product Info and Stock
+
+**Prompt:**
+> Problem 67 is called Tools: product info and stock. Give the agent tools that look up real information from campus_customs.db: product description, price, how many are in stock (by size and when the customer asks). The agent must use the database -- it should not invent prices or quantities. If a size is out of stock, say so clearly. Expand prompts/prompt.md so the agent knows to call these tools for price and stock questions. add or update return types in models.py. IN output/harness.md, list each tool and explain which model fields you chose for lookup results and why.
+
+No follow-up needed.

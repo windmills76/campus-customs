@@ -22,6 +22,39 @@ class Product(BaseModel):
     total_stock: int
 
 
+class ProductInfo(BaseModel):
+    """Description/price facts for one product — deliberately excludes
+    inventory so this tool can't be mistaken for a stock check."""
+
+    product_id: str
+    name: str
+    garment_type: str
+    description: str
+    colors: list[str]
+    price: float
+    image_url: str
+
+
+class ProductInfoResult(BaseModel):
+    found: bool
+    info: ProductInfo | None = None
+
+
+class StockLookupResult(BaseModel):
+    """Always includes the full by-size breakdown; the requested_size_*
+    fields are only populated when the caller asked about one specific
+    size, so the agent can answer either 'what sizes do you have' or
+    'do you have a medium' from the same tool."""
+
+    found: bool
+    product_id: str
+    total_stock: int | None = None
+    by_size: list[SizeStock] = Field(default_factory=list)
+    requested_size: str | None = None
+    requested_size_quantity: int | None = None
+    requested_size_in_stock: bool | None = None
+
+
 class SignupRequest(BaseModel):
     first_name: str = Field(min_length=1)
     last_name: str = Field(min_length=1)

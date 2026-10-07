@@ -10,7 +10,7 @@ from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from models import AgentReply, ChatTurn
-from tools import get_product_details, get_stock, search_catalogue
+from tools import get_product_info, get_stock, search_catalogue
 
 BACKEND_DIR = Path(__file__).resolve().parent
 PROMPT_PATH = BACKEND_DIR / "prompts" / "prompt.md"
@@ -54,7 +54,7 @@ def _system_prompt() -> str:
 shop_agent = Agent(
     output_type=AgentReply,
     instructions=_system_prompt(),
-    tools=[search_catalogue, get_product_details, get_stock],
+    tools=[search_catalogue, get_product_info, get_stock],
     name="campus-customs-shop-assistant",
 )
 

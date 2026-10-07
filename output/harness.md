@@ -127,3 +127,54 @@ something not in the catalogue (e.g. "Yale surfboards") gets a plain "we don't c
 of an invented answer; asking something off-topic (e.g. "write me a Python scraper") gets
 redirected back to shopping; a follow-up using "it" ("do you have it in a small?") correctly
 resolves against conversation history and checks real per-size stock.
+
+## Problem 6 — Tools: Product Info and Stock
+
+Three tools in `backend/tools.py`, all reading `campus_customs.db` directly (via `db.py`) — none
+of them let the agent answer from memory:
+
+### `search_catalogue(query, max_results=6) -> list[Product]`
+Keyword-overlap search across a product's name, garment type, description, colors, and search
+tags. Returns the full `Product` type (unchanged from Problem 3/5) because its job is discovery —
+giving the agent and the chat UI's product cards everything they need (image, price, stock) for a
+browsing-style result, not a single confirmed fact. An empty result means the store genuinely
+doesn't carry it, which the prompt leans on to avoid "closest match" hallucination.
+
+### `get_product_info(product_id) -> ProductInfoResult` (`models.py`)
+```
+ProductInfoResult: found: bool, info: ProductInfo | None
+ProductInfo: product_id, name, garment_type, description, colors, price, image_url
+```
+**Field choices:** `ProductInfo` deliberately leaves out `inventory`/`total_stock` and
+`search_tags`. Stock is excluded on purpose — this tool answers "what is it / what does it cost,"
+and keeping stock out of its payload means the agent can't accidentally answer a stock question
+from a product-info call without ever having called `get_stock`. `search_tags` is internal search
+metadata the shopper never asked about and would just waste context. `price` is a bare `float`,
+not a formatted string, so the agent (and the prompt's "quote it exactly") always gets the raw
+number rather than something pre-rounded or pre-formatted that could drift from the DB.
+
+### `get_stock(product_id, size=None) -> StockLookupResult` (`models.py`)
+```
+StockLookupResult: found, product_id, total_stock, by_size: list[SizeStock],
+                    requested_size, requested_size_quantity, requested_size_in_stock
+```
+**Field choices:** `by_size` (reusing the existing `SizeStock` type from `Product.inventory`) is
+*always* populated, even when the shopper asked about one specific size — so the agent can still
+mention "we do have it in other sizes" the way a helpful clerk would, without a second tool call.
+The `requested_size_*` fields are `None` unless a `size` argument was actually passed, which keeps
+"did the shopper ask about a specific size" unambiguous for the agent instead of it having to
+infer that from a generic structure. `requested_size_in_stock` is a plain bool computed from
+`quantity > 0` server-side (not left for the model to derive from a number), so "0 means out of
+stock" can never be misread or rounded up by the agent.
+
+Both lookup tools return a `found: bool` rather than raising or returning `None` directly, so a
+bad `product_id` (e.g. one the agent half-remembers from earlier in the conversation) produces a
+clean, typed "not found" the agent can act on instead of a tool error.
+
+`backend/prompts/prompt.md` was expanded with a "Your tools, and exactly when to call them"
+section naming all three tools explicitly and tying each to the question type that must trigger
+it (price/description → `get_product_info`, availability/size → `get_stock`), plus a rule that a
+quantity of 0 must be stated plainly. Verified against the live DB: for the Boola Boola T Shirt
+($32.00, L=0 in inventory), the agent correctly quoted $32.00, said "out of stock" for a large,
+and listed the exact per-size breakdown (XS 12, S 12, M 15, L out of stock, XL 2, XXL 20) when
+asked generally — all matching a direct `sqlite3` query against `campus_customs.db`.
