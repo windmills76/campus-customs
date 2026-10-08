@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 import db
+import safety
 import security
 from agent import ShopperContext, run_chat
 from models import ChatRequest, ChatResponse, LoginRequest, Product, PublicUser, SignupRequest
@@ -82,8 +83,13 @@ def _build_shopper_context(payload: ChatRequest) -> ShopperContext:
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest) -> ChatResponse:
+    # Code-level backstop, not just a prompt instruction: strip anything
+    # that looks like a card number or SSN before it reaches the model or
+    # the database, regardless of what the model would have done with it.
+    safe_message = safety.redact_sensitive(payload.message)
+
     deps = _build_shopper_context(payload)
-    agent_reply = await run_chat(payload.message, payload.history, deps)
+    agent_reply = await run_chat(safe_message, payload.history, deps)
     products = [db.get_product(pid) for pid in agent_reply.product_ids]
     products = [p for p in products if p is not None]
 
@@ -91,7 +97,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
     # row) get their conversation persisted — guests can chat, but nothing
     # is written to chat_messages for them.
     if not deps.is_guest and payload.user_id is not None:
-        db.save_chat_message(payload.user_id, "user", payload.message)
+        db.save_chat_message(payload.user_id, "user", safe_message)
         db.save_chat_message(payload.user_id, "assistant", agent_reply.message, products)
 
     return ChatResponse(reply=agent_reply.message, products=products)

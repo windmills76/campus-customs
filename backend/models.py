@@ -112,3 +112,23 @@ class AgentReply(BaseModel):
 
     message: str
     product_ids: list[str] = Field(default_factory=list)
+
+
+class AuditEvent(BaseModel):
+    """One line of output/audit_trail.json. Deliberately flat and mostly
+    optional fields (rather than a tool_call/run_complete union type) so the
+    log file stays simple to append to and to grep/read by hand; `type`
+    tells you which fields are populated for a given line. Short, truncated
+    strings only (see audit.py) — this is an activity log, not a full
+    request/response dump, so it can't become a second place sensitive chat
+    content leaks into."""
+
+    timestamp: str
+    type: Literal["tool_call", "run_complete"]
+    tool: str | None = None
+    args: str | None = None
+    result: str | None = None
+    message_preview: str | None = None
+    stop_reason: str | None = None
+    product_count: int | None = None
+    is_guest: bool | None = None

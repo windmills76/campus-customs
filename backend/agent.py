@@ -6,10 +6,21 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, UserPromptPart
+from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.usage import UsageLimits
 
+import audit
 from models import AgentReply, ChatTurn
 from tools import get_product_info, get_stock, search_catalogue
 
@@ -67,6 +78,22 @@ class ShopperContext:
     current_product_id: str | None = None
 
 
+# Spec: loop/result caps (Problem 12). Bounds worst-case latency and cost
+# per chat turn regardless of what the shopper asks or how the model
+# behaves — a runaway tool-calling loop fails safely instead of running
+# indefinitely or racking up unbounded API cost.
+USAGE_LIMITS = UsageLimits(request_limit=12, tool_calls_limit=12, total_tokens_limit=40_000)
+
+_LIMIT_EXCEEDED_REPLY = AgentReply(
+    message="That question took more steps than I'm allowed to take at once — could you ask it more simply, "
+    "or one part at a time?",
+)
+
+_ERROR_REPLY = AgentReply(
+    message="Sorry, something went wrong answering that. Please try rephrasing your question or try again "
+    "in a moment.",
+)
+
 shop_agent = Agent(
     deps_type=ShopperContext,
     output_type=AgentReply,
@@ -105,11 +132,51 @@ def _to_model_messages(history: list[ChatTurn]) -> list[ModelMessage]:
     return messages
 
 
+def _log_tool_calls(messages: list[ModelMessage]) -> None:
+    pending: dict[str, tuple[str, object]] = {}
+    for msg in messages:
+        for part in getattr(msg, "parts", []):
+            if isinstance(part, ToolCallPart):
+                pending[part.tool_call_id] = (part.tool_name, part.args)
+            elif isinstance(part, ToolReturnPart):
+                tool_name, args = pending.pop(part.tool_call_id, (part.tool_name, None))
+                audit.log_tool_call(tool_name, args, part.content)
+
+
+def _final_finish_reason(messages: list[ModelMessage]) -> str | None:
+    for msg in reversed(messages):
+        if isinstance(msg, ModelResponse):
+            return msg.finish_reason
+    return None
+
+
 async def run_chat(message: str, history: list[ChatTurn], deps: ShopperContext) -> AgentReply:
-    result = await shop_agent.run(
+    try:
+        result = await shop_agent.run(
+            message,
+            model=build_model(),
+            message_history=_to_model_messages(history),
+            deps=deps,
+            usage_limits=USAGE_LIMITS,
+        )
+    except UsageLimitExceeded as exc:
+        audit.log_run_complete(message, stop_reason=f"usage_limit_exceeded: {exc}", product_count=0, is_guest=deps.is_guest)
+        return _LIMIT_EXCEEDED_REPLY
+    except Exception as exc:
+        # Fail safely rather than leaking a raw 500/stack trace to the
+        # client — e.g. the underlying model provider's own content filter
+        # rejecting a request surfaces as an unhandled exception here. The
+        # real error still goes to the audit trail for debugging.
+        audit.log_run_complete(message, stop_reason=f"error: {exc}", product_count=0, is_guest=deps.is_guest)
+        return _ERROR_REPLY
+
+    all_messages = result.all_messages()
+    _log_tool_calls(all_messages)
+    audit.log_run_complete(
         message,
-        model=build_model(),
-        message_history=_to_model_messages(history),
-        deps=deps,
+        stop_reason=_final_finish_reason(all_messages),
+        product_count=len(result.output.product_ids),
+        is_guest=deps.is_guest,
     )
+
     return result.output

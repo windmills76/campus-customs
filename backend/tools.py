@@ -6,8 +6,19 @@ from models import Product, ProductInfo, ProductInfoResult, StockLookupResult
 _WORD_RE = re.compile(r"[a-z0-9]+")
 
 
+def _singularize(token: str) -> str:
+    # Naive but effective for this catalogue's vocabulary: match "hoodies"
+    # against a tagged "hoodie", "crewnecks" against "crewneck", etc.
+    # Surfaced by a real search_catalogue("hoodies", ...) returning an empty
+    # result in output/audit_trail.json even though the catalogue has
+    # dozens of hoodies tagged "hoodie" (singular).
+    if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
 def _tokenize(text: str) -> set[str]:
-    return set(_WORD_RE.findall(text.lower()))
+    return {_singularize(token) for token in _WORD_RE.findall(text.lower())}
 
 
 def _searchable_text(product: Product) -> str:
