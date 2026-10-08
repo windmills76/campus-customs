@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Campus Customs — App Check (Problem 11)</title>
+  <style>
+    body {
+      font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+      background: #f5f7fa;
+      color: #16213a;
+      line-height: 1.5;
+    }
+    h1 {
+      color: #00356b;
+    }
+    .intro {
+      color: #444;
+      margin-bottom: 2.5rem;
+    }
+    .check {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .check h2 {
+      color: #00356b;
+      margin-top: 0;
+    }
+    .check img {
+      width: 100%;
+      max-width: 760px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      display: block;
+      margin: 1rem 0;
+    }
+    .check p.caption {
+      font-size: 0.95rem;
+      color: #333;
+      margin: 0;
+    }
+    code {
+      background: #eef2f7;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Campus Customs — App Check</h1>
+  <p class="intro">
+    Problem 11: live tests of the running app (backend + frontend + agent, both started locally).
+    Each section below is one check: a heading, a screenshot of the actual running site, and one
+    or two sentences on what the screenshot proves.
+  </p>
+
+  <div class="check">
+    <h2>1. Chat gives an honest stock &amp; price answer, straight from the database</h2>
+    <img src="app_check_images/inventory_check.jpg" alt="Chat answering a stock and price question for the Champion Reverse Weave Crewneck" />
+    <p class="caption">
+      Asked the chat "Do you have the Champion Reverse Weave Crewneck in a large or a medium, and
+      how much is it?" The assistant replied with the exact catalogue price ($58) and correctly
+      said Medium is in stock (12 available) while Large is out of stock — both numbers match
+      <code>campus_customs.db</code> exactly (<code>inventory</code>: L=0, M=12), proving the agent
+      is reading real data rather than guessing.
+    </p>
+  </div>
+
+  <div class="check">
+    <h2>2. A category question dynamically populates product cards on the page</h2>
+    <img src="app_check_images/dynamic_search_cards.jpg" alt="Product cards for hoodies appearing on the page after asking the chat about hoodies" />
+    <p class="caption">
+      Asked the chat "What kind of hoodies do you have?" while sitting on the Home page. The page
+      itself — not just the chat bubble — immediately rendered a "From chat" panel with real hoodie
+      product cards (image, name, price, short description), fulfilling the Problem 7 contract:
+      the agent returns matching product IDs, and the front end renders them live on whatever page
+      the shopper is on.
+    </p>
+  </div>
+
+  <div class="check">
+    <h2>3. Usability feature (Problem 9): product search &amp; filter on the Products page</h2>
+    <img src="app_check_images/usability_search_filter.jpg" alt="Products page filtered to 3 of 102 products by typing 'saybrook' in the search box" />
+    <p class="caption">
+      Typed "saybrook" into the Products page search box. The grid instantly filtered from 102
+      items down to the 3 real Saybrook-branded products, with a live "3 of 102 products" count —
+      the search/filter bar added in Problem 9 to make a 100+ item catalogue easy to narrow down
+      without scrolling.
+    </p>
+  </div>
+</body>
+</html>
