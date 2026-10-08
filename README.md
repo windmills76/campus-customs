@@ -6,29 +6,33 @@ storefront backed by a FastAPI API, with a Pydantic AI shopping-assistant agent 
 ## Project layout
 
 ```
+requirements.txt    Backend Python dependencies (installed from the repo root)
+.env.example         Copy to .env and fill in your own PORTKEY_API_KEY
+AI_prompts.md        Log of prompts used per problem
+frontend/            React + Vite + TypeScript storefront
 backend/
-  main.py           FastAPI app (run with uvicorn) — products, auth, and chat routes
-  agent.py          Pydantic AI agent wiring (prompt file + Portkey-hosted model + usage limits)
-  tools.py          Tools the agent can call (catalogue search, stock lookup)
-  safety.py         Code-level redaction of card/SSN-like numbers before they reach the model/DB
-  audit.py          Append-only JSON Lines activity log (output/audit_trail.json)
-  prompts/prompt.md Agent system prompt (Campus Customs voice + safety rules)
-  models.py         Shared Pydantic / Pydantic AI types
-frontend/   React + Vite + TypeScript storefront
-data/       SQLite database + product images (gitignored, NOT committed — see below)
+  main.py            FastAPI app (run with uvicorn) — products, auth, and chat routes
+  agent.py           Pydantic AI agent wiring (prompt file + Portkey-hosted model + usage limits)
+  tools.py           Tools the agent can call (catalogue search, stock lookup)
+  models.py          Shared Pydantic / Pydantic AI types
+  prompts/prompt.md  Agent system prompt (Campus Customs voice + safety rules)
+  db.py / security.py / safety.py / audit.py   Supporting backend code (DB access, password
+                     hashing, sensitive-data redaction, append-only activity log)
 output/
-  harness.md          Living design/spec doc — how the whole system works, started in Problem 2
+  harness.md          Living design/spec doc — how the whole system works
   usability.md        Problem 9 usability improvements write-up
   design.md           Problem 10 visual design write-up
-  app_check.html      Problem 11 live app-check report with screenshots
-  audit_trail.json    Append-only agent activity log (JSON Lines; committed as evidence, keeps growing)
-ai_prompts.md   Log of prompts used per problem
+  app_check.html      Problem 11 live app-check report (open directly in a browser)
+  app_check_images/   Screenshots linked from app_check.html
+  audit_trail.json    Append-only agent activity log (JSON Lines; committed as evidence)
 ```
 
-## Data setup (required, not included in this repo)
+Not included in this repo (see Data setup below): `data/campus_customs.db` and `data/products/`.
 
-The product database and images are intentionally **excluded from git**. Before running the app,
-unzip your `data.zip` into this folder so it looks like:
+## Data setup (required — not included in this repo)
+
+The product database and images are intentionally **excluded from git**. Unzip your `data.zip`
+into the repo root so it looks like:
 
 ```
 data/
@@ -36,24 +40,28 @@ data/
   products/*.jpg
 ```
 
-## Running the backend
+## Backend setup
 
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
+1. Copy the env template and fill in your own key:
+   ```bash
+   cp .env.example .env
+   ```
+   Open `.env` and set `PORTKEY_API_KEY` (required for the chat agent; the rest of the site works
+   without it). `backend/agent.py` walks up from `backend/` looking for a `.env` file, so a `.env`
+   placed here at the repo root is found automatically — no path configuration needed.
 
-Health check: `curl http://localhost:8000/api/health`
+2. Install dependencies and run the API (from the repo root):
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   cd backend
+   uvicorn main:app --reload --port 8000
+   ```
 
-The chat agent needs a `PORTKEY_API_KEY` (and optionally `MODEL_NAME`, `PORTKEY_BASE_URL`) in a
-`.env` file. `backend/agent.py` looks for `.env` in `backend/` and walks up parent directories, so
-a shared `.env` higher up in a course/workspace folder is picked up automatically — no need to
-copy the key into this repo.
+3. Health check: `curl http://localhost:8000/api/health`
 
-## Running the frontend
+## Frontend setup
 
 ```bash
 cd frontend

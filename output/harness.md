@@ -390,7 +390,8 @@ none of them can write, so the agent has no path to modify the catalogue or inve
 - **Result caps**: `search_catalogue`'s `max_results` defaults to 6 (the model can ask for more
   explicitly, as seen with `max_results=20` in testing) — keeps a single search from dumping the
   entire 102-item catalogue into one reply.
-- **Running the app**: from `backend/`, `uvicorn main:app --reload --port 8000` (needs
-  `PORTKEY_API_KEY` in a `.env` — `backend/agent.py` walks up parent directories to find a shared
-  one). From `frontend/`, `npm install && npm run dev`, served at `http://localhost:5173`. Full
-  details in the repo [README.md](../README.md).
+- **Running the app**: `pip install -r requirements.txt` from the repo root, copy `.env.example` to
+  `.env` and set `PORTKEY_API_KEY`, then from `backend/`, `uvicorn main:app --reload --port 8000`
+  (`backend/agent.py` walks up parent directories from `backend/` and finds the repo-root `.env`
+  automatically). From `frontend/`, `npm install && npm run dev`, served at
+  `http://localhost:5173`. Full details in the repo [README.md](../README.md).
